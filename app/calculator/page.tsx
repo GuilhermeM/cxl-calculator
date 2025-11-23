@@ -22,6 +22,30 @@ const standardNormalCdf = (z: number): number => {
   return 0.5 * (1 + sign * erf);
 };
 
+// Inverse of the standard normal cumulative distribution function (for probability to Z-score)
+// Using Peter John Acklam's approximation
+const standardNormalInverseCdf = (p: number): number => {
+    if (p <= 0 || p >= 1) return 0;
+
+    // Coefficients for the rational approximation
+    const a = [-3.969683028665376e+01, 2.209460984245205e+02, -2.759285104469687e+02, 1.383577518672690e+02, -3.066479806614716e+01, 2.506628277459239e+00];
+    const b = [-5.447609879822406e+01, 1.615858368580409e+02, -1.556989798598866e+02, 6.680131188771972e+01, -1.328068155288572e+01];
+    const c = [-7.784894002430293e-03, -3.223964580411365e-01, -2.400758277161838e+00, -2.549732539343734e+00, 4.374664141464968e+00, 2.938163982698783e+00];
+    const d = [7.784695709041462e-03, 3.224671290700398e-01, 2.445134137142996e+00, 3.754408661907416e+00];
+
+    if (p < 0.5) {
+        const q = Math.sqrt(-2 * Math.log(p));
+        const num = (((((a[0] * q + a[1]) * q + a[2]) * q + a[3]) * q + a[4]) * q + a[5]);
+        const den = (((((b[0] * q + b[1]) * q + b[2]) * q + b[3]) * q + b[4]) * q + 1);
+        return num / den;
+    } else {
+        const q = Math.sqrt(-2 * Math.log(1 - p));
+        const num = (((((c[0] * q + c[1]) * q + c[2]) * q + c[3]) * q + c[4]) * q + c[5]);
+        const den = ((((d[0] * q + d[1]) * q + d[2]) * q + d[3]) * q + 1);
+        return -num / den;
+    }
+}
+
 const formatPercentage = (value: number | null | undefined) => {
     if (value === null || value === undefined || isNaN(value)) return 'N/A';
     if (value === Infinity) return '∞%';
@@ -137,12 +161,17 @@ const TestAnalysis = () => {
 const PreTestAnalysis = () => {
     const [weeklyTraffic, setWeeklyTraffic] = useState<number | string>('');
     const [weeklyConversions, setWeeklyConversions] = useState<number | string>('');
+    const [confidence, setConfidence] = useState<number | string>(95);
+    const [power, setPower] = useState<number | string>(80);
+
 
     const preTestResults = useMemo(() => {
         const traffic = Number(weeklyTraffic);
         const conversions = Number(weeklyConversions);
+        const conf = Number(confidence) / 100;
+        const pow = Number(power) / 100;
 
-        if (traffic <= 0 || conversions < 0 || conversions > traffic) {
+        if (traffic <= 0 || conversions < 0 || conversions > traffic || conf <= 0 || conf >= 1 || pow <= 0 || pow >= 1) {
             return null;
         }
 
@@ -150,15 +179,16 @@ const PreTestAnalysis = () => {
         if (baselineConvRate === 0 || baselineConvRate === 1) return [];
 
         const results = [];
-        // Z-scores for 95% confidence (alpha=0.05) and 80% power (beta=0.20)
-        const Z_ALPHA = 1.96;
-        const Z_BETA = 0.84;
+        
+        const alpha = 1 - conf;
+        const beta = 1 - pow;
+
+        const Z_ALPHA = standardNormalInverseCdf(1 - alpha / 2);
+        const Z_BETA = standardNormalInverseCdf(1 - beta);
 
         for (let weeks = 1; weeks <= 6; weeks++) {
             const totalTrafficPerVariation = (traffic * weeks) / 2;
             
-            // Formula for MDE: MDE = sqrt( (Z_alpha + Z_beta)^2 * (p1(1-p1) + p2(1-p2)) / n ) / p1
-            // We can approximate p1 ~= p2 for calculation
             const MDE = (Z_ALPHA + Z_BETA) / baselineConvRate * Math.sqrt((2 * baselineConvRate * (1 - baselineConvRate)) / totalTrafficPerVariation);
 
             results.push({
@@ -168,13 +198,13 @@ const PreTestAnalysis = () => {
         }
         return results;
 
-    }, [weeklyTraffic, weeklyConversions]);
+    }, [weeklyTraffic, weeklyConversions, confidence, power]);
 
     return (
         <div className={styles.preTestContainer}>
             <div className={styles.grid}>
                  <div className={styles.card}>
-                    <h2>Baseline Data</h2>
+                    <h2>Parameters</h2>
                     <div className={styles.inputGroup}>
                         <label htmlFor="weeklyTraffic">Average Weekly Traffic</label>
                         <input id="weeklyTraffic" type="number" value={weeklyTraffic} onChange={(e) => setWeeklyTraffic(e.target.value)} placeholder="e.g., 20000" />
@@ -183,13 +213,21 @@ const PreTestAnalysis = () => {
                         <label htmlFor="weeklyConversions">Average Weekly Conversions</label>
                         <input id="weeklyConversions" type="number" value={weeklyConversions} onChange={(e) => setWeeklyConversions(e.target.value)} placeholder="e.g., 400" />
                     </div>
+                     <div className={styles.inputGroup}>
+                        <label htmlFor="confidence">Confidence Level (%)</label>
+                        <input id="confidence" type="number" value={confidence} onChange={(e) => setConfidence(e.target.value)} placeholder="e.g., 95" />
+                    </div>
+                    <div className={styles.inputGroup}>
+                        <label htmlFor="power">Statistical Power (%)</label>
+                        <input id="power" type="number" value={power} onChange={(e) => setPower(e.target.value)} placeholder="e.g., 80" />
+                    </div>
                 </div>
             </div>
             
             {preTestResults && preTestResults.length > 0 && (
                 <div className={styles.results}>
                      <h2>Minimum Detectable Effect (MDE) by Duration</h2>
-                     <p className={styles.preTestSubtitle}>Calculated with 95% significance and 80% power.</p>
+                     <p className={styles.preTestSubtitle}>Calculated with {confidence}% significance and {power}% power.</p>
                      <table className={styles.preTestTable}>
                         <thead>
                             <tr>

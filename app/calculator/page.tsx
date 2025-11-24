@@ -1,7 +1,37 @@
 "use client";
 
-import React, { useState, useMemo } from 'react';
+import React, { useState, useMemo, useEffect } from 'react';
 import styles from './Calculator.module.css';
+
+// --- CUSTOM HOOK FOR LOCALSTORAGE ---
+
+function useLocalStorage<T>(key: string, initialValue: T): [T, React.Dispatch<React.SetStateAction<T>>] {
+  const [storedValue, setStoredValue] = useState<T>(() => {
+    if (typeof window === 'undefined') {
+      return initialValue;
+    }
+    try {
+      const item = window.localStorage.getItem(key);
+      return item ? JSON.parse(item) : initialValue;
+    } catch (error) {
+      console.log(error);
+      return initialValue;
+    }
+  });
+
+  useEffect(() => {
+    if (typeof window !== 'undefined') {
+      try {
+        window.localStorage.setItem(key, JSON.stringify(storedValue));
+      } catch (error) {
+        console.log(error);
+      }
+    }
+  }, [key, storedValue]);
+
+  return [storedValue, setStoredValue];
+}
+
 
 // --- UTILITY FUNCTIONS ---
 
@@ -56,10 +86,10 @@ const formatPercentage = (value: number | null | undefined) => {
 // --- MODE 1: TEST ANALYSIS ---
 
 const TestAnalysis = () => {
-    const [visitorsA, setVisitorsA] = useState<number | string>('');
-    const [conversionsA, setConversionsA] = useState<number | string>('');
-    const [visitorsB, setVisitorsB] = useState<number | string>('');
-    const [conversionsB, setConversionsB] = useState<number | string>('');
+    const [visitorsA, setVisitorsA] = useLocalStorage<number | string>('testAnalysis_visitorsA', '');
+    const [conversionsA, setConversionsA] = useLocalStorage<number | string>('testAnalysis_conversionsA', '');
+    const [visitorsB, setVisitorsB] = useLocalStorage<number | string>('testAnalysis_visitorsB', '');
+    const [conversionsB, setConversionsB] = useLocalStorage<number | string>('testAnalysis_conversionsB', '');
 
     const results = useMemo(() => {
         const vA = Number(visitorsA);
@@ -159,10 +189,10 @@ const TestAnalysis = () => {
 // --- MODE 2: PRE-TEST ANALYSIS ---
 
 const PreTestAnalysis = () => {
-    const [weeklyTraffic, setWeeklyTraffic] = useState<number | string>('');
-    const [weeklyConversions, setWeeklyConversions] = useState<number | string>('');
-    const [confidence, setConfidence] = useState<number | string>(95);
-    const [power, setPower] = useState<number | string>(80);
+    const [weeklyTraffic, setWeeklyTraffic] = useLocalStorage<number | string>('preTestAnalysis_weeklyTraffic', '');
+    const [weeklyConversions, setWeeklyConversions] = useLocalStorage<number | string>('preTestAnalysis_weeklyConversions', '');
+    const [confidence, setConfidence] = useLocalStorage<number | string>('preTestAnalysis_confidence', 95);
+    const [power, setPower] = useLocalStorage<number | string>('preTestAnalysis_power', 80);
 
 
     const preTestResults = useMemo(() => {

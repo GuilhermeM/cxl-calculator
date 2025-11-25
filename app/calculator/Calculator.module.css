@@ -228,3 +228,7 @@
 .copyButton:hover {
   background-color: #e0e0e0;
 }
+
+.durationCard {
+  margin-bottom: 25px;
+}

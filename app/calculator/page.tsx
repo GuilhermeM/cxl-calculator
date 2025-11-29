@@ -43,10 +43,21 @@ const standardNormalCdf = (z: number): number => {
     const a3 = 1.421413741;
     const a4 = -1.453152027;
     const a5 = 1.061405429;
-    const sign = z >= 0 ? 1 : -1;
-    const t = 1 / (1 + p * Math.abs(z));
-    const poly = a1 * t + a2 * Math.pow(t, 2) + a3 * Math.pow(t, 3) + a4 * Math.pow(t, 4) + a5 * Math.pow(t, 5);
-    const erf = 1 - poly * Math.exp(-Math.pow(z, 2));
+
+    // escalar o z para usar na erf
+    const x = z / Math.SQRT2;
+    const sign = x >= 0 ? 1 : -1;
+    const t = 1 / (1 + p * Math.abs(x));
+
+    const poly =
+        a1 * t +
+        a2 * Math.pow(t, 2) +
+        a3 * Math.pow(t, 3) +
+        a4 * Math.pow(t, 4) +
+        a5 * Math.pow(t, 5);
+
+    const erf = 1 - poly * Math.exp(-Math.pow(x, 2));
+
     return 0.5 * (1 + sign * erf);
 };
 

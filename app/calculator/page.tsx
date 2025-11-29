@@ -124,12 +124,13 @@ const TestAnalysis = ({ visitorsA, setVisitorsA, conversionsA, setConversionsA, 
 
         if (duration > 0 && convRateA > 0 && convRateA < 1 && convRateB > 0 && convRateB < 1 && convRateA !== convRateB) {
             const Z_ALPHA = standardNormalInverseCdf(1 - 0.05 / 2); // For 95% confidence
-            const Z_BETA = standardNormalInverseCdf(1 - 0.2);  // For 80% power
 
             const p1 = convRateA;
             const p2 = convRateB;
             
-            const requiredNPerVariation = ((Z_ALPHA * Math.sqrt(2 * pooledProb * (1 - pooledProb))) + (Z_BETA * Math.sqrt(p1 * (1 - p1) + p2 * (1 - p2))))**2 / (p1 - p2)**2;
+            const requiredNPerVariation =
+              (2 * (Z_ALPHA ** 2) * pooledProb * (1 - pooledProb)) /
+              ((p2 - p1) ** 2);
 
             const totalVisitorsPerDay = (vA + vB) / duration;
 
@@ -137,13 +138,9 @@ const TestAnalysis = ({ visitorsA, setVisitorsA, conversionsA, setConversionsA, 
                 const requiredTotalVisitors = requiredNPerVariation * 2;
                 const requiredTotalDays = Math.ceil(requiredTotalVisitors / totalVisitorsPerDay);
                 const extraDays = requiredTotalDays - duration;
+                
                 additionalDaysNeeded = extraDays > 0 ? extraDays : 0;
-
-                if (typeof additionalDaysNeeded === 'number') {
-                    projectedTotalDuration = duration + additionalDaysNeeded;
-                } else {
-                    projectedTotalDuration = 'N/A';
-                }
+                projectedTotalDuration = duration + additionalDaysNeeded;
 
             } else {
                 additionalDaysNeeded = 'N/A';
